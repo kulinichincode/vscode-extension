@@ -224,7 +224,7 @@ class DeepCodeAnalyzer implements DeepCode.AnalyzerInterface {
     const analyzer = this;
     let attemptsIfFailedStatus = 2;
     const endpoint = extension.config.getAnalysisUrl(bundleId);
-    async function fetchAnalysisResults() {
+    async function fetchAnalysisResults(isDelay = true) {
       try {
         const analysisResponse: { [key: string]: any } = await http.get(
           endpoint,
@@ -241,10 +241,10 @@ class DeepCodeAnalyzer implements DeepCode.AnalyzerInterface {
           attemptsIfFailedStatus--;
           return !attemptsIfFailedStatus
             ? { success: false }
-            : await httpDelay(fetchAnalysisResults);
+            : await httpDelay(fetchAnalysisResults, isDelay);
         }
         if (analysisResponse.status !== ANALYSIS_STATUS.done) {
-          return await httpDelay(fetchAnalysisResults);
+          return await httpDelay(fetchAnalysisResults, isDelay);
         }
         return { ...analysisResponse.analysisResults, success: true };
       } catch (err) {
@@ -258,7 +258,8 @@ class DeepCodeAnalyzer implements DeepCode.AnalyzerInterface {
         return { success: false };
       }
     }
-    return await httpDelay(fetchAnalysisResults);
+    const isDelay = false;
+    return await httpDelay(fetchAnalysisResults, isDelay);
   }
 
   private async performAnalysis(

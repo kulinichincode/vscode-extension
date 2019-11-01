@@ -198,7 +198,8 @@ class BundlesModule extends LoginModule
 
   public async uploadMissingFilesToServerBundle(
     workspacePath: string,
-    chunkedPayload: any = []
+    chunkedPayload: any = [],
+    isDelay: boolean = false
   ): Promise<void> {
     const { bundleId } = this.remoteBundles[workspacePath];
     const endpoint = this.config.getUploadFilesUrl(bundleId);
@@ -211,13 +212,15 @@ class BundlesModule extends LoginModule
               body: chunkPayload,
               token: this.token,
               fileUpload: true
-            })
+            }),
+          isDelay
         );
       } catch (err) {
         if (err.statusCode === statusCodes.bigPayload) {
           await this.uploadMissingFilesToServerBundle(
             workspacePath,
-            chunkPayload
+            chunkPayload,
+            (isDelay = true)
           );
         } else {
           this.errorHandler.processError(this, err, {
@@ -258,7 +261,8 @@ class BundlesModule extends LoginModule
   // check bundle server status
   public async checkBundleOnServer(
     workspacePath: string,
-    attempts: number = ATTEMPTS_AMMOUNT
+    attempts: number = ATTEMPTS_AMMOUNT,
+    isDelay = false
   ): Promise<void> {
     if (!this.remoteBundles[workspacePath]) {
       return;
@@ -271,12 +275,17 @@ class BundlesModule extends LoginModule
         throw new Error(EXPIRED_REQUEST);
       }
       const latestServerBundle: DeepCode.RemoteBundleInterface = await httpDelay(
-        async () => await http.get(endpoint, this.token)
+        async () => await http.get(endpoint, this.token),
+        isDelay
       );
       await this.processBundleFromServer(latestServerBundle, workspacePath);
       const { missingFiles } = this.remoteBundles[workspacePath];
       if (missingFiles && missingFiles.length) {
-        await this.checkBundleOnServer(workspacePath, attempts--);
+        await this.checkBundleOnServer(
+          workspacePath,
+          attempts--,
+          (isDelay = true)
+        );
       }
     } catch (err) {
       let message = errorsLogs.checkBundle;
